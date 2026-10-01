@@ -270,13 +270,13 @@ fun InteractiveDiagramCanvas(
             ) {
                 IconButton(
                     onClick = { scale = (scale + 0.2f).coerceAtMost(2.5f) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Acercar zoom")
                 }
                 IconButton(
                     onClick = { scale = (scale - 0.2f).coerceAtLeast(0.5f) },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(Icons.Default.Remove, contentDescription = "Alejar zoom")
                 }
@@ -285,7 +285,7 @@ fun InteractiveDiagramCanvas(
                         scale = 1.0f
                         panOffset = Offset.Zero
                     },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = "Restablecer vista")
                 }
@@ -298,12 +298,13 @@ fun InteractiveDiagramCanvas(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(12.dp)
                     .testTag("node_detail_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
+                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
@@ -318,13 +319,13 @@ fun InteractiveDiagramCanvas(
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Default.Info,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
+                                        modifier = Modifier.size(22.dp),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -338,12 +339,13 @@ fun InteractiveDiagramCanvas(
                                 )
                                 Text(
                                     text = "Relevancia en examen: ${node.examImportanceScore}% • ${node.category}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
-                        IconButton(onClick = { selectedNode = null }) {
+                        IconButton(onClick = { selectedNode = null }, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Default.Close, contentDescription = "Cerrar detalle")
                         }
                     }
@@ -353,29 +355,34 @@ fun InteractiveDiagramCanvas(
                     Text(
                         text = node.description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 24.sp
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Acciones directas para Manuelito
+                    // Acciones directas para Manuelito: 1 Primario y 1 Secundario
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
                             onClick = { onExplainConcept(node.title) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Explicar con IA", fontSize = 12.sp)
+                            Text("Explicar con IA", style = MaterialTheme.typography.bodyMedium)
                         }
                         Button(
                             onClick = { onQuizConcept(node.title) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Cuestionario", fontSize = 12.sp)
+                            Text("Cuestionario", style = MaterialTheme.typography.titleSmall)
                         }
                     }
                 }

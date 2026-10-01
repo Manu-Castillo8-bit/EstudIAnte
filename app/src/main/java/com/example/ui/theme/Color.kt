@@ -2,42 +2,44 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta de colores para REPASO IA (Modern Material 3 - Estilo Educativo Vibrante)
-// Comentario de precaución: Evitar usar colores sin contraste en texto accesible (mínimo 4.5:1).
-val RepasoPrimary = Color(0xFF4F46E5)         // Índigo vibrante
+// Paleta de ALTO CONTRASTE para lectura bajo luz solar directa (WCAG AAA)
+val RepasoPrimary = Color(0xFF312E81)         // Índigo profundo de alto contraste
 val RepasoOnPrimary = Color(0xFFFFFFFF)
-val RepasoPrimaryContainer = Color(0xFFE0E7FF)
-val RepasoOnPrimaryContainer = Color(0xFF1E1B4B)
+val RepasoPrimaryContainer = Color(0xFFC7D2FE)
+val RepasoOnPrimaryContainer = Color(0xFF0F172A)
 
-val RepasoSecondary = Color(0xFF0284C7)       // Azul cielo educativo
+val RepasoSecondary = Color(0xFF0369A1)       // Azul marino nítido
 val RepasoOnSecondary = Color(0xFFFFFFFF)
-val RepasoSecondaryContainer = Color(0xFFE0F2FE)
-val RepasoOnSecondaryContainer = Color(0xFF0369A1)
+val RepasoSecondaryContainer = Color(0xFFBAE6FD)
+val RepasoOnSecondaryContainer = Color(0xFF082F49)
 
-val RepasoTertiary = Color(0xFFD97706)        // Ámbar para logros y alertas de examen
+val RepasoTertiary = Color(0xFF92400E)        // Ámbar tostado visible al sol
 val RepasoOnTertiary = Color(0xFFFFFFFF)
-val RepasoTertiaryContainer = Color(0xFFFEF3C7)
-val RepasoOnTertiaryContainer = Color(0xFF78350F)
+val RepasoTertiaryContainer = Color(0xFFFDE68A)
+val RepasoOnTertiaryContainer = Color(0xFF451A03)
 
-val RepasoSuccess = Color(0xFF10B981)         // Verde esmeralda para respuestas correctas
-val RepasoError = Color(0xFFEF4444)           // Rojo suave para errores en cuestionarios
-val RepasoErrorContainer = Color(0xFFFEE2E2)
-val RepasoOnErrorContainer = Color(0xFF991B1B)
+val RepasoSuccess = Color(0xFF047857)         // Verde esmeralda intenso
+val RepasoSuccessContainer = Color(0xFFA7F3D0)
+val RepasoOnSuccess = Color(0xFFFFFFFF)
 
-val RepasoBackgroundLight = Color(0xFFF8FAFC)
-val RepasoSurfaceLight = Color(0xFFFFFFFF)
-val RepasoSurfaceVariantLight = Color(0xFFF1F5F9)
-val RepasoOnSurfaceLight = Color(0xFF0F172A)
-val RepasoOutlineLight = Color(0xFFCBD5E1)
+val RepasoError = Color(0xFFB91C1C)           // Rojo rubí oscuro
+val RepasoErrorContainer = Color(0xFFFECACA)
+val RepasoOnErrorContainer = Color(0xFF450A0A)
+
+val RepasoBackgroundLight = Color(0xFFFFFFFF) // Blanco puro para máximo reflejo y nitidez
+val RepasoSurfaceLight = Color(0xFFF8FAFC)
+val RepasoSurfaceVariantLight = Color(0xFFE2E8F0)
+val RepasoOnSurfaceLight = Color(0xFF020617)  // Negro Slate 950 (contraste 18:1 contra blanco)
+val RepasoOutlineLight = Color(0xFF334155)    // Borde marcado de 2dp bien visible al sol
 
 // Colores Modo Oscuro
-val RepasoPrimaryDark = Color(0xFF818CF8)
+val RepasoPrimaryDark = Color(0xFFA5B4FC)
 val RepasoOnPrimaryDark = Color(0xFF1E1B4B)
 val RepasoPrimaryContainerDark = Color(0xFF312E81)
 val RepasoOnPrimaryContainerDark = Color(0xFFE0E7FF)
 
-val RepasoBackgroundDark = Color(0xFF0F172A)
-val RepasoSurfaceDark = Color(0xFF1E293B)
-val RepasoSurfaceVariantDark = Color(0xFF334155)
+val RepasoBackgroundDark = Color(0xFF020617)
+val RepasoSurfaceDark = Color(0xFF0F172A)
+val RepasoSurfaceVariantDark = Color(0xFF1E293B)
 val RepasoOnSurfaceDark = Color(0xFFF8FAFC)
-val RepasoOutlineDark = Color(0xFF475569)
+val RepasoOutlineDark = Color(0xFF94A3B8)

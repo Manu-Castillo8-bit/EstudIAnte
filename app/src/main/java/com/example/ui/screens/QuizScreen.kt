@@ -296,13 +296,13 @@ private fun QuizQuestionView(
                         Surface(
                             shape = CircleShape,
                             color = borderColor.copy(alpha = 0.2f),
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(38.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = ('A'.code + index).toChar().toString(),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
+                                    fontSize = 17.sp,
                                     color = if (hasAnswered && (option.isCorrect || isSelected)) borderColor else MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -500,26 +500,29 @@ private fun QuizResultsView(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // ÚNICO BOTÓN PRINCIPAL (FILLED) DE ESTA PANTALLA
                 Button(
                     onClick = onRetry,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Reintentar este Cuestionario")
+                    Text("Reintentar este Cuestionario", style = MaterialTheme.typography.titleSmall)
                 }
 
+                // TODOS LOS DEMÁS BOTONES SON SECUNDARIOS (OUTLINED)
                 OutlinedButton(
                     onClick = onNewQuiz,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Generar Nuevas Preguntas con IA")
+                    Text("Generar Nuevas Preguntas con IA", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 }
 
                 Row(
@@ -528,37 +531,38 @@ private fun QuizResultsView(
                 ) {
                     OutlinedButton(
                         onClick = onOpenDiagram,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Ver Diagrama", fontSize = 12.sp)
+                        Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Diagrama", style = MaterialTheme.typography.bodyMedium)
                     }
 
                     OutlinedButton(
                         onClick = onOpenExplain,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Explicar Dudas", fontSize = 12.sp)
+                        Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Tutor IA", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
-                Button(
+                OutlinedButton(
                     onClick = onFinish,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
-                    Text("Volver al Inicio")
+                    Text("Volver al Inicio", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }

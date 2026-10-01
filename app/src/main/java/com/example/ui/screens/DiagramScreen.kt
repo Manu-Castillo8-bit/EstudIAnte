@@ -121,12 +121,15 @@ fun DiagramScreen(
 
                     IconButton(
                         onClick = { onGenerateDiagram(topic, selectedType) },
-                        modifier = Modifier.testTag("regenerate_diagram_button")
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("regenerate_diagram_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Regenerar diagrama",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp)
                         )
                     }
                 }
@@ -135,7 +138,7 @@ fun DiagramScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 10.dp)
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -170,14 +173,16 @@ fun DiagramScreen(
         // Subtítulo explicativo del tipo de diagrama actual
         currentDiagram?.let { diagram ->
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "💡 ${diagram.summary} (Arrastra para mover, pellizca o usa +/- para zoom, toca nodos para inspeccionar)",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "💡 ${diagram.summary}\n(Arrastrá con un dedo para mover, usá +/- para zoom y tocá cualquier nodo para ver su explicación)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 24.sp
                 )
             }
         }
@@ -202,12 +207,13 @@ fun DiagramScreen(
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = "Generando estructura visual para $topic...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Calculando relaciones y pesos de examen",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "Calculando relaciones y conceptos clave",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -220,7 +226,7 @@ fun DiagramScreen(
                 )
             } else {
                 Text(
-                    text = "Presiona 'Regenerar' para visualizar el diagrama.",
+                    text = "Tocá el botón de recargar arriba para ver el diagrama.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -238,21 +244,23 @@ private fun DiagramTypeChip(
     FilterChip(
         selected = isSelected,
         onClick = onSelect,
+        modifier = Modifier
+            .height(48.dp)
+            .testTag("chip_diagram_${type.name}"),
         label = {
-            Text(text = type.title, fontSize = 12.sp)
+            Text(text = type.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         },
         leadingIcon = {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(20.dp)
             )
         },
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primary,
             selectedLabelColor = Color.White,
             selectedLeadingIconColor = Color.White
-        ),
-        modifier = Modifier.testTag("chip_diagram_${type.name}")
+        )
     )
 }
