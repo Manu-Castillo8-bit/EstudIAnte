@@ -1,0 +1,6 @@
+{
+  "name": "Repaso IA",
+  "description": "Tutor inteligente de estudio para Manuelito: explicaciones interactivas, generación de diagramas y cuestionarios de repaso.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

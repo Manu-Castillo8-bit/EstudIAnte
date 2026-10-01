@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Repaso IA</string>
+    <string name="welcome_title">¡Hola, Manuelito! 👋</string>
+    <string name="welcome_subtitle">¿Qué examen estás preparando hoy? ¿Qué te gustaría hacer?</string>
+    <string name="menu_explain">Explicar un tema</string>
+    <string name="menu_diagram">Crear diagramas</string>
+    <string name="menu_quiz">Cuestionario de repaso</string>
+</resources>
