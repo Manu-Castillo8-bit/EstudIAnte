@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Quiz
@@ -46,7 +47,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -57,9 +60,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.BackupManager
 import com.example.data.local.QuizAttemptEntity
 import com.example.data.local.StudyTopicEntity
 import com.example.ui.viewmodel.AppScreen
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,6 +99,9 @@ fun HomeScreen(
     var topicToEdit by remember { mutableStateOf<StudyTopicEntity?>(null) }
     var topicToDelete by remember { mutableStateOf<StudyTopicEntity?>(null) }
     var topicToStudy by remember { mutableStateOf<StudyTopicEntity?>(null) }
+    var showBackupDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     LazyColumn(
         modifier = modifier
@@ -294,6 +302,20 @@ fun HomeScreen(
                         StatItem(number = "${topics.size}", label = "Temas Activos")
                         StatItem(number = "$diagramCount", label = "Diagramas")
                         StatItem(number = "${quizAttempts.size}", label = "Cuestionarios")
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedButton(
+                        onClick = { showBackupDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_export_backup"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Exportar / Respaldar Datos SQLite", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -536,6 +558,91 @@ fun HomeScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { topicToStudy = null }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
+    // DIÁLOGO 5: INFORMACIÓN Y EXPORTACIÓN DE RESPALDO SQLITE
+    if (showBackupDialog) {
+        val dbPath = BackupManager.getDatabaseFilePath(context)
+        var isExporting by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showBackupDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Respaldo SQLite (Room)", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Tus datos nunca se pierden al cerrar la app porque están guardados en la base de datos local SQLite.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "📁 Archivo de base de datos:",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "repaso_ia.db",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Ruta exacta en el dispositivo:\n$dbPath",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Podés exportar todos tus temas, notas y cuestionarios en un archivo JSON para tener un respaldo externo o enviártelo por WhatsApp / Drive:",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Button(
+                        onClick = {
+                            isExporting = true
+                            coroutineScope.launch {
+                                val json = BackupManager.generateBackupJson(context)
+                                BackupManager.shareBackup(context, json)
+                                isExporting = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isExporting,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isExporting) "Generando respaldo..." else "Exportar / Compartir Respaldo")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showBackupDialog = false }) {
                     Text("Cerrar")
                 }
             }
