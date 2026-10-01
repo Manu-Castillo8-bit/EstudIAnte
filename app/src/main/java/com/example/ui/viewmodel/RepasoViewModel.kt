@@ -135,6 +135,36 @@ class RepasoViewModel(application: Application) : AndroidViewModel(application) 
         _selectedTopic.value = topic
     }
 
+    /**
+     * Agrega un nuevo tema a la lista permanente de Manuelito en Room.
+     */
+    fun addNewTopic(title: String, subject: String = "General") {
+        if (title.isBlank()) return
+        viewModelScope.launch {
+            repository.addCustomTopic(title = title, subject = subject)
+            _selectedTopic.value = title.trim()
+        }
+    }
+
+    /**
+     * Permite a Manuelito editar el nombre o materia de un tema existente.
+     */
+    fun editTopic(id: Long, newTitle: String, newSubject: String, newSummary: String = "") {
+        if (newTitle.isBlank()) return
+        viewModelScope.launch {
+            repository.updateTopic(id, newTitle, newSubject, newSummary)
+        }
+    }
+
+    /**
+     * Permite a Manuelito borrar un tema de su lista.
+     */
+    fun deleteTopic(id: Long) {
+        viewModelScope.launch {
+            repository.deleteTopic(id)
+        }
+    }
+
     fun startTopicStudy(topic: String, screen: AppScreen) {
         _selectedTopic.value = topic
         _currentScreen.value = screen

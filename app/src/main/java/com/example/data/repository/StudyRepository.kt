@@ -88,4 +88,32 @@ class StudyRepository(
             )
         )
     }
+
+    /**
+     * Permite a Manuelito agregar nuevos temas a su lista permanente sin que se borren.
+     */
+    suspend fun addCustomTopic(title: String, subject: String, summary: String = ""): Long {
+        return studyDao.insertTopic(
+            StudyTopicEntity(
+                title = title.trim(),
+                subject = subject.ifBlank { "General" }.trim(),
+                summary = if (summary.isNotBlank()) summary.trim() else "Tema preparado para repasar con IA, diagramas y cuestionario.",
+                lastStudiedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    /**
+     * Modifica el nombre, materia o resumen de un tema existente.
+     */
+    suspend fun updateTopic(id: Long, title: String, subject: String, summary: String) {
+        studyDao.updateTopic(id, title.trim(), subject.trim(), summary.trim())
+    }
+
+    /**
+     * Elimina un tema específico de la base de datos local.
+     */
+    suspend fun deleteTopic(id: Long) {
+        studyDao.deleteTopicById(id)
+    }
 }

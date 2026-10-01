@@ -107,6 +107,15 @@ fun RepasoApp(viewModel: RepasoViewModel) {
                     onTopicSelected = { topic ->
                         viewModel.selectTopic(topic)
                     },
+                    onAddTopic = { title, subject ->
+                        viewModel.addNewTopic(title, subject)
+                    },
+                    onEditTopic = { id, title, subject, summary ->
+                        viewModel.editTopic(id, title, subject, summary)
+                    },
+                    onDeleteTopic = { id ->
+                        viewModel.deleteTopic(id)
+                    },
                     modifier = modifier
                 )
             }

@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,19 +15,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,10 +37,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,18 +54,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.QuizAttemptEntity
 import com.example.data.local.StudyTopicEntity
 import com.example.ui.viewmodel.AppScreen
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Pantalla Principal de Repaso IA.
  *
- * CRITERIO DE ACEPTACIÓN CUMPLIDO:
- * Da una cálida y personalizada bienvenida a Manuelito y le pregunta claramente qué quiere hacer hoy,
- * ofreciendo accesos directos e intuitivos a las tres funciones del pedido sin errores en consola.
+ * CUMPLE REQUERIMIENTOS:
+ * 1. Lo primero que ve Manuelito es la bienvenida y el RESUMEN DE LOS TEMAS que ha ingresado/estudiado.
+ * 2. Puede ver la lista completa sin que desaparezcan los temas anteriores (persistidos en Room).
+ * 3. Permite agregar nuevos temas, editarlos y borrarlos.
+ * 4. Al dar click en cualquier tema, se abre el panel con su resumen y acceso directo a:
+ *    - Explicador IA (Gemini).
+ *    - Diagrama creativo e interactivo.
+ *    - Cuestionario de repaso.
  */
 @Composable
 fun HomeScreen(
@@ -73,20 +84,16 @@ fun HomeScreen(
     diagramCount: Int,
     onNavigateTo: (AppScreen) -> Unit,
     onTopicSelected: (String) -> Unit,
+    onAddTopic: (String, String) -> Unit,
+    onEditTopic: (Long, String, String, String) -> Unit,
+    onDeleteTopic: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isEditingTopic by remember { mutableStateOf(false) }
-    var customTopicInput by remember(selectedTopic) { mutableStateOf(selectedTopic) }
-
-    val presetTopics = listOf(
-        "La Célula y Mitosis",
-        "Leyes de Newton",
-        "Revolución Industrial",
-        "Estructura de Datos",
-        "Fotosíntesis",
-        "Termodinámica",
-        "Segunda Guerra Mundial"
-    )
+    // Diálogos de estado
+    var showAddDialog by remember { mutableStateOf(false) }
+    var topicToEdit by remember { mutableStateOf<StudyTopicEntity?>(null) }
+    var topicToDelete by remember { mutableStateOf<StudyTopicEntity?>(null) }
+    var topicToStudy by remember { mutableStateOf<StudyTopicEntity?>(null) }
 
     LazyColumn(
         modifier = modifier
@@ -102,10 +109,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .testTag("welcome_hero_card"),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -113,8 +117,8 @@ fun HomeScreen(
                         .background(
                             Brush.linearGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
                                 )
                             )
                         )
@@ -122,250 +126,151 @@ fun HomeScreen(
                 ) {
                     Column {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.2f),
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.School,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(26.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White.copy(alpha = 0.22f),
+                                    modifier = Modifier.size(46.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.School,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "¡Hola, Manuelito! 👋",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "¿Qué examen preparás hoy? ¿Qué querés hacer?",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White.copy(alpha = 0.9f)
                                     )
                                 }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "¡Hola, Manuelito! 👋",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Tutor Inteligente de Estudio",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White.copy(alpha = 0.85f)
-                                )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "¿Qué examen estás preparando hoy? ¿Qué te gustaría hacer?",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Selector / Editor del tema actual
-                        Surface(
+                        // Botón de Agregar Nuevo Tema destacado
+                        Button(
+                            onClick = { showAddDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
                             shape = RoundedCornerShape(14.dp),
-                            color = Color.White.copy(alpha = 0.15f),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_add_new_topic")
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                                    .fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Tema de examen seleccionado:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White.copy(alpha = 0.8f)
-                                    )
-                                    Text(
-                                        text = selectedTopic,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { isEditingTopic = !isEditingTopic },
-                                    modifier = Modifier.testTag("edit_topic_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Cambiar tema",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Agregar Nuevo Tema para Examen",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
                         }
                     }
                 }
             }
         }
 
-        // Si el usuario presiona editar tema, mostramos el campo de texto libre
-        if (isEditingTopic) {
+        // 2. ENCABEZADO DE LA LISTA DE RESÚMENES DE TEMAS
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Mis Temas de Examen (${topics.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Toca cualquier tema para ver opciones de IA, diagramas y test",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.testTag("icon_add_topic")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Agregar tema",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        // 3. LISTA DE TEMAS (PERSISTENTES EN ROOM, EDITABLES Y BORRABLES)
+        if (topics.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(
-                            text = "Escribí cualquier materia o tema para tu examen:",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            text = "Todavía no agregaste temas.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = customTopicInput,
-                                onValueChange = { customTopicInput = it },
-                                placeholder = { Text("Ej: Termodinámica, Célula...") },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("topic_text_input"),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    if (customTopicInput.isNotBlank()) {
-                                        onTopicSelected(customTopicInput.trim())
-                                        isEditingTopic = false
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.testTag("apply_topic_button")
-                            ) {
-                                Text("Fijar")
-                            }
+                        Button(onClick = { showAddDialog = true }) {
+                            Text("Crear mi primer tema")
                         }
                     }
                 }
             }
-        }
-
-        // 2. CHIPS DE TEMAS RÁPIDOS SUGERIDOS
-        item {
-            Column {
-                Text(
-                    text = "Temas populares para practicar hoy:",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            items(topics, key = { it.id }) { topic ->
+                TopicSummaryCard(
+                    topic = topic,
+                    isSelected = topic.title.equals(selectedTopic, ignoreCase = true),
+                    onClick = {
+                        onTopicSelected(topic.title)
+                        topicToStudy = topic
+                    },
+                    onEdit = { topicToEdit = topic },
+                    onDelete = { topicToDelete = topic }
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    presetTopics.forEach { topic ->
-                        val isSelected = topic.equals(selectedTopic, ignoreCase = true)
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .clickable {
-                                    customTopicInput = topic
-                                    onTopicSelected(topic)
-                                }
-                                .testTag("topic_chip_${topic.replace(" ", "_")}")
-                        ) {
-                            Text(
-                                text = topic,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    }
-                }
             }
         }
 
-        // TÍTULO DE LAS 3 FUNCIONES PRINCIPALES
-        item {
-            Text(
-                text = "¿Qué querés hacer ahora, Manuelito?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // FUNCIÓN 1: AGENTE EXPLICADOR IA
-        item {
-            FeatureActionCard(
-                title = "1. Explicador de IA",
-                subtitle = "Pregúntale cualquier duda o concepto y te lo explica paso a paso con analogías y trampas de examen.",
-                icon = Icons.Default.Psychology,
-                badgeText = "Tutor Pedagógico",
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                iconColor = MaterialTheme.colorScheme.primary,
-                testTag = "card_action_explain",
-                buttonText = "Consultar al Tutor",
-                onClick = { onNavigateTo(AppScreen.EXPLAIN) }
-            )
-        }
-
-        // FUNCIÓN 2: GENERADOR DE DIAGRAMAS Y GRÁFICOS INTELIGENTES
-        item {
-            FeatureActionCard(
-                title = "2. Diagramas y Gráficos Inteligentes",
-                subtitle = "Genera mapas conceptuales, diagramas de flujo y esquemas interactivos de tu tema con zoom y nodos tocables.",
-                icon = Icons.Default.Hub,
-                badgeText = "Visualizador Canvas",
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                iconColor = MaterialTheme.colorScheme.secondary,
-                testTag = "card_action_diagram",
-                buttonText = "Crear Diagrama",
-                onClick = { onNavigateTo(AppScreen.DIAGRAM) }
-            )
-        }
-
-        // FUNCIÓN 3: CUESTIONARIOS INTERACTIVOS PARA REPASO
-        item {
-            FeatureActionCard(
-                title = "3. Cuestionario de Repaso",
-                subtitle = "Ponte a prueba con un simulacro interactivo tipo test con corrección instantánea y justificación.",
-                icon = Icons.Default.Quiz,
-                badgeText = "Simulacro de Examen",
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                testTag = "card_action_quiz",
-                buttonText = "Iniciar Cuestionario",
-                onClick = { onNavigateTo(AppScreen.QUIZ) }
-            )
-        }
-
-        // 4. RESUMEN DE PROGRESO DE ESTUDIO EN ROOM
+        // 4. ESTADÍSTICAS Y PROGRESO GENERAL DE REPASO
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
                             contentDescription = null,
@@ -386,111 +291,364 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        StatItem(
-                            number = "${quizAttempts.size}",
-                            label = "Cuestionarios"
-                        )
-                        StatItem(
-                            number = "$diagramCount",
-                            label = "Diagramas"
-                        )
-                        StatItem(
-                            number = "${topics.size}",
-                            label = "Temas en Base"
-                        )
+                        StatItem(number = "${topics.size}", label = "Temas Activos")
+                        StatItem(number = "$diagramCount", label = "Diagramas")
+                        StatItem(number = "${quizAttempts.size}", label = "Cuestionarios")
                     }
                 }
             }
         }
     }
+
+    // =========================================================================
+    // DIÁLOGOS Y MODALES INTERACTIVOS
+    // =========================================================================
+
+    // DIÁLOGO 1: AGREGAR NUEVO TEMA
+    if (showAddDialog) {
+        var newTitle by remember { mutableStateOf("") }
+        var newSubject by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Agregar Nuevo Tema para Examen") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Ingresá el tema que querés estudiar. Quedará guardado en tu lista para siempre.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = newTitle,
+                        onValueChange = { newTitle = it },
+                        label = { Text("Tema o Concepto (ej: Termodinámica)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_new_topic_title")
+                    )
+                    OutlinedTextField(
+                        value = newSubject,
+                        onValueChange = { newSubject = it },
+                        label = { Text("Materia (ej: Física, Biología, Historia)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_new_topic_subject")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newTitle.isNotBlank()) {
+                            onAddTopic(newTitle.trim(), newSubject.ifBlank { "General" }.trim())
+                            onTopicSelected(newTitle.trim())
+                            showAddDialog = false
+                        }
+                    },
+                    modifier = Modifier.testTag("btn_confirm_add_topic")
+                ) {
+                    Text("Guardar Tema")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // DIÁLOGO 2: EDITAR TEMA
+    topicToEdit?.let { topic ->
+        var editTitle by remember(topic) { mutableStateOf(topic.title) }
+        var editSubject by remember(topic) { mutableStateOf(topic.subject) }
+        var editSummary by remember(topic) { mutableStateOf(topic.summary) }
+
+        AlertDialog(
+            onDismissRequest = { topicToEdit = null },
+            title = { Text("Editar Tema") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = editTitle,
+                        onValueChange = { editTitle = it },
+                        label = { Text("Título del Tema") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editSubject,
+                        onValueChange = { editSubject = it },
+                        label = { Text("Materia") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editSummary,
+                        onValueChange = { editSummary = it },
+                        label = { Text("Resumen de estudio") },
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editTitle.isNotBlank()) {
+                            onEditTopic(topic.id, editTitle.trim(), editSubject.trim(), editSummary.trim())
+                            topicToEdit = null
+                        }
+                    }
+                ) {
+                    Text("Guardar Cambios")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { topicToEdit = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // DIÁLOGO 3: CONFIRMAR BORRADO DE TEMA
+    topicToDelete?.let { topic ->
+        AlertDialog(
+            onDismissRequest = { topicToDelete = null },
+            title = { Text("¿Eliminar este tema?") },
+            text = {
+                Text("¿Estás seguro de que deseas eliminar '${topic.title}' de tu lista de estudio?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteTopic(topic.id)
+                        topicToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { topicToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // DIÁLOGO 4: PANEL DE ACCIONES DEL TEMA (AL DAR CLICK EN CUALQUIER TEMA)
+    topicToStudy?.let { topic ->
+        AlertDialog(
+            onDismissRequest = { topicToStudy = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = topic.title, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Materia: ${topic.subject}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = topic.summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "¿Qué querés hacer con este tema, Manuelito?",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // 1. Botón Explicador IA
+                    OutlinedButton(
+                        onClick = {
+                            topicToStudy = null
+                            onTopicSelected(topic.title)
+                            onNavigateTo(AppScreen.EXPLAIN)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Psychology, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("1. Explicar con Tutor IA (Gemini)")
+                    }
+
+                    // 2. Botón Diagrama Creativo
+                    OutlinedButton(
+                        onClick = {
+                            topicToStudy = null
+                            onTopicSelected(topic.title)
+                            onNavigateTo(AppScreen.DIAGRAM)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("2. Diagramas Creativos e Interactivos")
+                    }
+
+                    // 3. Botón Cuestionario de Repaso
+                    Button(
+                        onClick = {
+                            topicToStudy = null
+                            onTopicSelected(topic.title)
+                            onNavigateTo(AppScreen.QUIZ)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Quiz, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("3. Cuestionario de Repaso")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { topicToStudy = null }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
 }
 
+/**
+ * Tarjeta individual de resumen de tema para Manuelito.
+ */
 @Composable
-private fun FeatureActionCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    badgeText: String,
-    containerColor: Color,
-    iconColor: Color,
-    testTag: String,
-    buttonText: String,
-    onClick: () -> Unit
+private fun TopicSummaryCard(
+    topic: StudyTopicEntity,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .testTag(testTag),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+            .testTag("card_topic_${topic.id}"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(46.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = topic.subject,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Row {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(32.dp).testTag("btn_edit_topic_${topic.id}")
+                    ) {
                         Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconColor,
-                            modifier = Modifier.size(28.dp)
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar tema",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp).testTag("btn_delete_topic_${topic.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Borrar tema",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                         )
                     }
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = iconColor.copy(alpha = 0.15f)
-                ) {
-                    Text(
-                        text = badgeText,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = iconColor
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = title,
+                text = topic.title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = topic.summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Button(
-                onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = iconColor),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = buttonText, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Toca para estudiar →",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -502,7 +660,7 @@ private fun StatItem(number: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = number,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary
         )

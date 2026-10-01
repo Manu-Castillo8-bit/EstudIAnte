@@ -41,6 +41,11 @@ class GeminiService {
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+    // Caché inteligente en memoria: evita gastar tokens en consultas repetidas y permite uso ilimitado y ultra rápido
+    private val explanationCache = java.util.concurrent.ConcurrentHashMap<String, StudyExplanation>()
+    private val diagramCache = java.util.concurrent.ConcurrentHashMap<String, DiagramData>()
+    private val quizCache = java.util.concurrent.ConcurrentHashMap<String, QuizSession>()
+
     /**
      * Comprueba si la API key está presente y no es un marcador de posición.
      */
@@ -54,74 +59,105 @@ class GeminiService {
     }
 
     /**
-     * 1. Solicita al agente de IA una explicación detallada y orientada a examen.
+     * 1. Solicita al agente de IA una explicación detallada y orientada a examen usando Gemini 3.5 Flash.
      */
     suspend fun explainTopic(topic: String): StudyExplanation = withContext(Dispatchers.IO) {
+        val cacheKey = topic.lowercase().trim()
+        explanationCache[cacheKey]?.let { return@withContext it }
+
         if (!isApiKeyConfigured()) {
-            return@withContext generateLocalExplanation(topic)
+            val localExp = generateLocalExplanation(topic)
+            explanationCache[cacheKey] = localExp
+            return@withContext localExp
         }
 
         try {
             val prompt = """
-                Sos un tutor pedagógico experto para Manuelito, un estudiante que está preparando un examen exigente.
+                Sos un tutor pedagógico de nivel superior para Manuelito, un estudiante que está preparando un examen riguroso.
                 El tema de estudio es: "$topic".
+                Explica con estilo claro, motivador, profundo y fácil de retener, como lo haría el mejor tutor de IA (estilo ChatGPT).
                 Devuelve ÚNICAMENTE un objeto JSON válido (sin formato markdown ni comillas invertidas) con este esquema exacto:
                 {
-                  "simpleDefinition": "Definición clara y precisa en palabras sencillas",
-                  "analogy": "Analogía o ejemplo de la vida cotidiana para memorizarlo fácilmente",
-                  "keyPoints": ["Punto clave 1 para el examen", "Punto clave 2 para el examen", "Punto clave 3 para el examen", "Punto clave 4"],
-                  "examTraps": ["Trampa típica o error frecuente que suelen cometer los estudiantes", "Confusión conceptual típica"],
-                  "checkQuestion": "Pregunta rápida de autoevaluación",
-                  "checkAnswer": "Respuesta correcta a la pregunta de autoevaluación"
+                  "simpleDefinition": "Definición clara, rigurosa pero en palabras sencillas",
+                  "analogy": "Analogía o ejemplo creativo de la vida real que fije el concepto de inmediato",
+                  "keyPoints": [
+                    "Punto clave 1 indispensable para aprobar",
+                    "Punto clave 2 sobre mecanismos o causas",
+                    "Punto clave 3 sobre consecuencias o fórmulas",
+                    "Punto clave 4 relevante para el examen"
+                  ],
+                  "examTraps": [
+                    "Trampa típica o confusión conceptual que suelen evaluar los profesores",
+                    "Error común que resta puntos en el examen"
+                  ],
+                  "checkQuestion": "Pregunta de autoevaluación desafiante pero directa",
+                  "checkAnswer": "Respuesta correcta explicada brevemente"
                 }
             """.trimIndent()
 
             val responseText = callGeminiRaw(prompt)
-            parseExplanationJson(topic, responseText)
+            val result = parseExplanationJson(topic, responseText)
+            explanationCache[cacheKey] = result
+            result
         } catch (e: Exception) {
             Log.w("GeminiService", "Error consultando Gemini para explicación, usando motor local: ${e.message}")
-            generateLocalExplanation(topic)
+            val fallback = generateLocalExplanation(topic)
+            explanationCache[cacheKey] = fallback
+            fallback
         }
     }
 
     /**
-     * 2. Genera la estructura de nodos y conexiones para un diagrama inteligente.
+     * 2. Genera la estructura de nodos y conexiones para un diagrama inteligente y creativo.
      */
     suspend fun generateDiagram(topic: String, type: DiagramType): DiagramData = withContext(Dispatchers.IO) {
+        val cacheKey = "${type.name}_${topic.lowercase().trim()}"
+        diagramCache[cacheKey]?.let { return@withContext it }
+
         if (!isApiKeyConfigured()) {
-            return@withContext generateLocalDiagram(topic, type)
+            val localDiagram = generateLocalDiagram(topic, type)
+            diagramCache[cacheKey] = localDiagram
+            return@withContext localDiagram
         }
 
         try {
             val typeDesc = when (type) {
-                DiagramType.MIND_MAP -> "mapa conceptual con nodo central y ramas radiales de conceptos"
-                DiagramType.FLOWCHART -> "diagrama de flujo paso a paso con secuencia de fases o causas y efectos"
-                DiagramType.HIERARCHY_TREE -> "árbol jerárquico piramidal con nodo raíz y subcategorías"
-                DiagramType.SMART_METRICS -> "gráfico comparativo con puntuación de relevancia para el examen"
+                DiagramType.MIND_MAP -> "mapa conceptual con nodo central y ramas radiales ricas en relaciones conceptuales"
+                DiagramType.FLOWCHART -> "diagrama de flujo paso a paso con fases, causas, decisiones intermedias y resultados finales"
+                DiagramType.HIERARCHY_TREE -> "árbol jerárquico piramidal con categorías maestras, subtemas y elementos de detalle"
+                DiagramType.SMART_METRICS -> "gráfico inteligente con matriz de relevancia para examen, variables y comparaciones"
             }
 
             val prompt = """
-                Sos un generador de esquemas visuales para estudiantes.
-                Crea un $typeDesc para el tema: "$topic".
-                Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
+                Sos un diseñador de esquemas visuales pedagógicos experto como ChatGPT.
+                Crea un $typeDesc sumamente creativo, detallado y conectado para el tema: "$topic".
+                Devuelve ÚNICAMENTE un objeto JSON válido con este formato exacto:
                 {
-                  "summary": "Breve resumen explicativo del esquema (2 líneas)",
+                  "summary": "Resumen explicativo del esquema y cómo memorizarlo (2 líneas)",
                   "nodes": [
-                    { "id": "1", "title": "Título corto (max 4 palabras)", "description": "Explicación del nodo para el examen", "level": 0, "category": "Tema Central", "score": 95 },
-                    { "id": "2", "title": "Subtema A", "description": "Detalle...", "level": 1, "category": "Fase", "score": 85 }
+                    { "id": "1", "title": "Título corto y claro", "description": "Explicación profunda del concepto para el examen", "level": 0, "category": "Tema Central", "score": 98 },
+                    { "id": "2", "title": "Concepto 2", "description": "Detalle explicativo...", "level": 1, "category": "Categoría", "score": 90 },
+                    { "id": "3", "title": "Concepto 3", "description": "Detalle explicativo...", "level": 1, "category": "Categoría", "score": 88 },
+                    { "id": "4", "title": "Subconcepto A", "description": "Detalle...", "level": 2, "category": "Detalle", "score": 82 }
                   ],
                   "connections": [
-                    { "fromId": "1", "toId": "2", "label": "origina" }
+                    { "fromId": "1", "toId": "2", "label": "origina / define" },
+                    { "fromId": "1", "toId": "3", "label": "se compone de" },
+                    { "fromId": "2", "toId": "4", "label": "aplica en" }
                   ]
                 }
-                Incluye entre 5 y 8 nodos significativos.
+                Incluye entre 6 y 10 nodos para que sea completo, creativo y detallado.
             """.trimIndent()
 
             val responseText = callGeminiRaw(prompt)
-            parseDiagramJson(topic, type, responseText)
+            val result = parseDiagramJson(topic, type, responseText)
+            diagramCache[cacheKey] = result
+            result
         } catch (e: Exception) {
             Log.w("GeminiService", "Error consultando Gemini para diagrama, usando motor local: ${e.message}")
-            generateLocalDiagram(topic, type)
+            val fallback = generateLocalDiagram(topic, type)
+            diagramCache[cacheKey] = fallback
+            fallback
         }
     }
 
@@ -129,8 +165,13 @@ class GeminiService {
      * 3. Genera un cuestionario interactivo de repaso con retroalimentación inmediata.
      */
     suspend fun generateQuiz(topic: String): QuizSession = withContext(Dispatchers.IO) {
+        val cacheKey = topic.lowercase().trim()
+        quizCache[cacheKey]?.let { return@withContext it }
+
         if (!isApiKeyConfigured()) {
-            return@withContext generateLocalQuiz(topic)
+            val localQuiz = generateLocalQuiz(topic)
+            quizCache[cacheKey] = localQuiz
+            return@withContext localQuiz
         }
 
         try {

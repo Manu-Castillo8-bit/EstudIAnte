@@ -26,6 +26,9 @@ interface StudyDao {
     @Query("DELETE FROM study_topics WHERE id = :id")
     suspend fun deleteTopicById(id: Long)
 
+    @Query("UPDATE study_topics SET title = :title, subject = :subject, summary = :summary, lastStudiedAt = :timestamp WHERE id = :id")
+    suspend fun updateTopic(id: Long, title: String, subject: String, summary: String, timestamp: Long = System.currentTimeMillis())
+
     // --- Cuestionarios de Repaso ---
     @Query("SELECT * FROM quiz_attempts ORDER BY timestamp DESC")
     fun getAllQuizAttempts(): Flow<List<QuizAttemptEntity>>
