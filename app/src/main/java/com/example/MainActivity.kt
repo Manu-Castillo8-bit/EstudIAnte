@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.RepasoTopBar
+import com.example.ui.components.StudySealDialog
 import com.example.ui.screens.DiagramScreen
 import com.example.ui.screens.ExplainScreen
 import com.example.ui.screens.HomeScreen
@@ -75,6 +76,11 @@ fun RepasoApp(viewModel: RepasoViewModel) {
     val isGeneratingQuiz by viewModel.isGeneratingQuiz.collectAsStateWithLifecycle()
     val quizResult by viewModel.quizResult.collectAsStateWithLifecycle()
 
+    // Estados de [SELLO DE IA DE EstudIAnte]
+    val currentSeal by viewModel.currentSeal.collectAsStateWithLifecycle()
+    val isGeneratingSeal by viewModel.isGeneratingSeal.collectAsStateWithLifecycle()
+    val sealError by viewModel.sealError.collectAsStateWithLifecycle()
+
     val topBarTitle = when (currentScreen) {
         AppScreen.HOME -> "Repaso IA"
         AppScreen.EXPLAIN -> "Tutor IA • Manuelito"
@@ -115,6 +121,9 @@ fun RepasoApp(viewModel: RepasoViewModel) {
                     },
                     onDeleteTopic = { id ->
                         viewModel.deleteTopic(id)
+                    },
+                    onRequestSeal = { topic ->
+                        viewModel.requestStudySeal(topic)
                     },
                     modifier = modifier
                 )
@@ -186,5 +195,15 @@ fun RepasoApp(viewModel: RepasoViewModel) {
                 )
             }
         }
+    }
+
+    // Diálogo del [SELLO DE IA DE EstudIAnte] (Consumo de datos estructurados JSON)
+    if (currentSeal != null || isGeneratingSeal || sealError != null) {
+        StudySealDialog(
+            seal = currentSeal,
+            isLoading = isGeneratingSeal,
+            errorMessage = sealError,
+            onDismiss = { viewModel.dismissStudySeal() }
+        )
     }
 }

@@ -16,6 +16,7 @@ import com.example.model.QuizQuestion
 import com.example.model.QuizResult
 import com.example.model.QuizSession
 import com.example.model.StudyExplanation
+import com.example.model.StudySeal
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -317,5 +318,41 @@ class RepasoViewModel(application: Application) : AndroidViewModel(application) 
         _quizScore.value = 0
         _isQuizCompleted.value = false
         _quizResult.value = null
+    }
+
+    // -------------------------------------------------------------
+    // ESTADO: [SELLO DE IA DE EstudIAnte]
+    // -------------------------------------------------------------
+    private val _currentSeal = MutableStateFlow<StudySeal?>(null)
+    val currentSeal: StateFlow<StudySeal?> = _currentSeal.asStateFlow()
+
+    private val _isGeneratingSeal = MutableStateFlow(false)
+    val isGeneratingSeal: StateFlow<Boolean> = _isGeneratingSeal.asStateFlow()
+
+    private val _sealError = MutableStateFlow<String?>(null)
+    val sealError: StateFlow<String?> = _sealError.asStateFlow()
+
+    /**
+     * Solicita a Gemini el [SELLO DE IA DE EstudIAnte] con validación de responseSchema
+     * y manejo de fallos sin bloquear la app.
+     */
+    fun requestStudySeal(topic: String) {
+        viewModelScope.launch {
+            _isGeneratingSeal.value = true
+            _sealError.value = null
+            try {
+                val seal = repository.getStudySeal(topic)
+                _currentSeal.value = seal
+            } catch (e: Exception) {
+                _sealError.value = "No se pudo conectar con el auditor de IA en este momento. Se activó el dictamen local de respaldo."
+            } finally {
+                _isGeneratingSeal.value = false
+            }
+        }
+    }
+
+    fun dismissStudySeal() {
+        _currentSeal.value = null
+        _sealError.value = null
     }
 }

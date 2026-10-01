@@ -116,4 +116,11 @@ class StudyRepository(
     suspend fun deleteTopic(id: Long) {
         studyDao.deleteTopicById(id)
     }
+
+    /**
+     * Solicita y valida el [SELLO DE IA DE EstudIAnte] para el tema indicado.
+     */
+    suspend fun getStudySeal(topic: String): com.example.model.StudySeal {
+        return geminiService.generateStudySeal(topic)
+    }
 }

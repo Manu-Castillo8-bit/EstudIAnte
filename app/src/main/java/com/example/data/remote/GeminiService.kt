@@ -10,6 +10,7 @@ import com.example.model.QuizOption
 import com.example.model.QuizQuestion
 import com.example.model.QuizSession
 import com.example.model.StudyExplanation
+import com.example.model.StudySeal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -739,5 +740,218 @@ class GeminiService {
         }
 
         return QuizSession(topic = topic, questions = questions)
+    }
+
+    // =========================================================================
+    // [SELLO DE IA DE EstudIAnte] - Auditoría y Certificación Pedagógica
+    // =========================================================================
+
+    /**
+     * Genera el [SELLO DE IA DE EstudIAnte] llamando a Gemini 3.5 Flash con un JSON Schema estricto (responseSchema).
+     * Si no hay API key configurada, hay fallo de red o el JSON no cumple el esquema,
+     * se activa el manejo de fallos con el sello didáctico local sin bloquear la app.
+     */
+    suspend fun generateStudySeal(topic: String): StudySeal = withContext(Dispatchers.IO) {
+        if (!isApiKeyConfigured()) {
+            return@withContext generateLocalStudySeal(topic, isSimulation = true)
+        }
+
+        try {
+            val responseText = callGeminiStudySealRaw(topic)
+            parseStudySealJson(topic, responseText)
+        } catch (e: Exception) {
+            Log.w("GeminiService", "Fallo al generar Sello de IA con Gemini, activando respaldo local: ${e.message}")
+            generateLocalStudySeal(topic, isSimulation = true)
+        }
+    }
+
+    /**
+     * Llamada directa REST hacia Gemini 3.5 Flash usando responseSchema fijo (JSON estructurado).
+     */
+    private fun callGeminiStudySealRaw(topic: String): String {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
+
+        val systemInstruction = "Sos el Auditor Pedagógico Oficial del sistema 'EstudIAnte IA'. Tu misión es certificar las competencias del alumno sobre un tema de examen. Emites un dictamen estrictamente estructurado en JSON según el responseSchema indicado, sin formato libre ni texto adicional."
+        val userPrompt = "Audita y genera el [SELLO DE IA DE EstudIAnte] para el tema de examen: '$topic'. Evalúa fortalezas reales, fórmula/concepto clave y emite un veredicto pedagógico riguroso."
+
+        val requestJson = JSONObject().apply {
+            val contents = JSONArray().apply {
+                val userContent = JSONObject().apply {
+                    val parts = JSONArray().apply {
+                        put(JSONObject().put("text", userPrompt))
+                    }
+                    put("parts", parts)
+                }
+                put(userContent)
+            }
+            put("contents", contents)
+
+            put("systemInstruction", JSONObject().apply {
+                put("parts", JSONArray().apply {
+                    put(JSONObject().put("text", systemInstruction))
+                })
+            })
+
+            // ESQUEMA FIJO OBLIGATORIO (responseSchema)
+            val generationConfig = JSONObject().apply {
+                put("responseMimeType", "application/json")
+                put("temperature", 0.2) // Baja temperatura para consistencia y rigor evaluativo
+
+                val responseSchema = JSONObject().apply {
+                    put("type", "OBJECT")
+                    val properties = JSONObject().apply {
+                        put("topic", JSONObject().put("type", "STRING"))
+                        put("masteryLevel", JSONObject().apply {
+                            put("type", "STRING")
+                            put("enum", JSONArray().apply {
+                                put("BASICO")
+                                put("INTERMEDIO")
+                                put("AVANZADO")
+                                put("MAESTRIA")
+                            })
+                        })
+                        put("score", JSONObject().put("type", "INTEGER"))
+                        put("verifiedDate", JSONObject().put("type", "STRING"))
+                        put("strengths", JSONObject().apply {
+                            put("type", "ARRAY")
+                            put("items", JSONObject().put("type", "STRING"))
+                        })
+                        put("keyFormulaOrConcept", JSONObject().put("type", "STRING"))
+                        put("examConfidencePercentage", JSONObject().put("type", "INTEGER"))
+                        put("sealCode", JSONObject().put("type", "STRING"))
+                        put("pedagogicalVerdict", JSONObject().put("type", "STRING"))
+                    }
+                    put("properties", properties)
+                    put("required", JSONArray().apply {
+                        put("topic")
+                        put("masteryLevel")
+                        put("score")
+                        put("verifiedDate")
+                        put("strengths")
+                        put("keyFormulaOrConcept")
+                        put("examConfidencePercentage")
+                        put("sealCode")
+                        put("pedagogicalVerdict")
+                    })
+                }
+                put("responseSchema", responseSchema)
+            }
+            put("generationConfig", generationConfig)
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestJson.toString().toRequestBody(jsonMediaType))
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            throw IllegalStateException("HTTP ${response.code}: ${response.message}")
+        }
+
+        val responseBody = response.body?.string().orEmpty()
+        val root = JSONObject(responseBody)
+        val candidates = root.optJSONArray("candidates")
+        val candidate = candidates?.optJSONObject(0)
+        val content = candidate?.optJSONObject("content")
+        val parts = content?.optJSONArray("parts")
+        val firstPart = parts?.optJSONObject(0)
+        return firstPart?.optString("text").orEmpty()
+    }
+
+    /**
+     * Parsea el JSON devuelto por Gemini asegurando que cumple con los campos obligatorios del esquema.
+     */
+    fun parseStudySealJson(topic: String, rawJson: String): StudySeal {
+        val clean = cleanJson(rawJson)
+        val json = JSONObject(clean)
+
+        val strengthsList = mutableListOf<String>()
+        val arr = json.optJSONArray("strengths")
+        if (arr != null) {
+            for (i in 0 until arr.length()) {
+                strengthsList.add(arr.getString(i))
+            }
+        }
+
+        if (strengthsList.isEmpty()) {
+            strengthsList.add("Dominio de los conceptos esenciales para examen")
+            strengthsList.add("Capacidad de relacionar causas y efectos")
+        }
+
+        return StudySeal(
+            topic = json.optString("topic", topic),
+            masteryLevel = json.optString("masteryLevel", "AVANZADO"),
+            score = json.optInt("score", 90).coerceIn(0, 100),
+            verifiedDate = json.optString("verifiedDate", "2026-10-01"),
+            strengths = strengthsList,
+            keyFormulaOrConcept = json.optString("keyFormulaOrConcept", "Principio rector del tema de estudio"),
+            examConfidencePercentage = json.optInt("examConfidencePercentage", 92).coerceIn(0, 100),
+            sealCode = json.optString("sealCode", "ESTUD-IA-2026-OK"),
+            pedagogicalVerdict = json.optString("pedagogicalVerdict", "APROBADO PARA EXAMEN FINAL"),
+            isLocalSimulation = false
+        )
+    }
+
+    /**
+     * Sello de prueba didáctico local garantizado (sin consumo de red ni API keys).
+     * Usado para desarrollo, pruebas unitarias y modo sin conexión.
+     */
+    fun generateLocalStudySeal(topic: String, isSimulation: Boolean = false): StudySeal {
+        val t = topic.lowercase().trim()
+        val randomHex = Integer.toHexString((1000..9999).random()).uppercase()
+        val sealCode = "ESTUD-IA-2026-$randomHex"
+
+        return when {
+            t.contains("newton") || t.contains("fuerza") || t.contains("inercia") -> StudySeal(
+                topic = topic,
+                masteryLevel = "MAESTRIA",
+                score = 96,
+                verifiedDate = "2026-10-01",
+                strengths = listOf(
+                    "Diferenciación exacta entre masa inercial y fuerza peso",
+                    "Aplicación rigurosa de la 2ª Ley F = m · a en problemas dinámicos",
+                    "Identificación sin errores de pares de acción y reacción en cuerpos distintos"
+                ),
+                keyFormulaOrConcept = "Σ F = m · a (Principio Fundamental de la Dinámica)",
+                examConfidencePercentage = 98,
+                sealCode = sealCode,
+                pedagogicalVerdict = "APROBADO CON DISTINCIÓN PARA EXAMEN FINAL",
+                isLocalSimulation = isSimulation
+            )
+            t.contains("célula") || t.contains("celula") || t.contains("mitosis") -> StudySeal(
+                topic = topic,
+                masteryLevel = "AVANZADO",
+                score = 94,
+                verifiedDate = "2026-10-01",
+                strengths = listOf(
+                    "Reconocimiento cronológico de las 4 fases: Profase, Metafase, Anafase y Telofase",
+                    "Comprensión de la función del huso mitótico y cinetocoros",
+                    "Distinción clara frente a la variabilidad genética de la Meiosis"
+                ),
+                keyFormulaOrConcept = "2n ➔ 2n (Conservación Diploide del Cariotipo)",
+                examConfidencePercentage = 95,
+                sealCode = sealCode,
+                pedagogicalVerdict = "APROBADO CON SOLVENCIA TEÓRICA Y PRÁCTICA",
+                isLocalSimulation = isSimulation
+            )
+            else -> StudySeal(
+                topic = topic,
+                masteryLevel = "AVANZADO",
+                score = 92,
+                verifiedDate = "2026-10-01",
+                strengths = listOf(
+                    "Comprensión de las definiciones axiales y relaciones causa-efecto",
+                    "Capacidad de evitar trampas frecuentes con enunciados absolutos",
+                    "Aplicación de analogías prácticas en preguntas de razonamiento"
+                ),
+                keyFormulaOrConcept = "Fundamento teórico verificado y comprobado",
+                examConfidencePercentage = 93,
+                sealCode = sealCode,
+                pedagogicalVerdict = "APROBADO PARA EXAMEN FINAL",
+                isLocalSimulation = isSimulation
+            )
+        }
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +88,7 @@ fun HomeScreen(
     onAddTopic: (String, String) -> Unit,
     onEditTopic: (Long, String, String, String) -> Unit,
     onDeleteTopic: (Long) -> Unit,
+    onRequestSeal: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Diálogos de interacción
@@ -714,6 +716,28 @@ fun HomeScreen(
                         Text(
                             text = "3. Cuestionario de Repaso",
                             style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+
+                    // OPCIÓN 4: [SELLO DE IA DE EstudIAnte] (AUDITORÍA PEDAGÓGICA)
+                    OutlinedButton(
+                        onClick = {
+                            val topicTitle = topic.title
+                            topicToStudy = null
+                            onRequestSeal(topicTitle)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF047857))
+                    ) {
+                        Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF047857))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "4. Sello de IA de EstudIAnte",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFF047857)
                         )
                     }
                 }
